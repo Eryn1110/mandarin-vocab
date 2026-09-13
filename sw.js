@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vocab-tracker-v2';
+const CACHE_NAME = 'vocab-tracker-v4';
 const ASSETS = ['./vocab-tracker.html'];
 
 self.addEventListener('install', (event) => {
