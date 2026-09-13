@@ -58,6 +58,61 @@
   .count-badge {
     font-size: 12px; color: var(--paper-dim);
   }
+  .select-toggle {
+    background: none; border: none;
+    color: var(--jade);
+    font-size: 13px;
+    padding: 4px 0 4px 10px;
+    cursor: pointer;
+  }
+  .select-toggle.active { color: var(--seal); }
+
+  .entry.selectable { padding-left: 0; }
+  .entry-checkbox {
+    flex: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line);
+    display: none;
+    align-items: center; justify-content: center;
+  }
+  .entry.selectable .entry-checkbox { display: flex; }
+  .entry.checked .entry-checkbox { background: var(--seal); border-color: var(--seal); }
+  .entry.checked .entry-checkbox::after {
+    content: "✓"; font-size: 13px; color: var(--paper);
+  }
+  .entry.checked { background: rgba(193,64,46,0.08); }
+
+  .select-bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    max-width: 480px; margin: 0 auto;
+    background: var(--surface-raised);
+    border-top: 1px solid var(--line);
+    padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+    display: none;
+    align-items: center; justify-content: space-between;
+    gap: 12px;
+    z-index: 15;
+  }
+  .select-bar.open { display: flex; }
+  .select-bar .sb-count { font-size: 13px; color: var(--paper-dim); }
+  .select-bar .sb-actions { display: flex; gap: 10px; }
+  .select-bar button {
+    padding: 9px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--paper);
+  }
+  .select-bar .sb-delete {
+    background: var(--seal);
+    border-color: var(--seal);
+    color: var(--paper);
+  }
+  .select-bar .sb-delete:disabled {
+    opacity: 0.4;
+  }
 
   .search-wrap {
     margin-top: 14px;
@@ -338,6 +393,13 @@
 
   .study-pinyin { font-size: 26px; color: var(--jade); }
   .study-vn { font-size: 20px; color: var(--paper); }
+  .study-example {
+    font-size: 17px;
+    color: var(--paper-dim);
+    line-height: 1.5;
+    margin-top: 4px;
+    padding: 0 6px;
+  }
   .study-tag {
     margin-top: 6px;
     font-size: 11px; color: var(--paper-dim);
@@ -375,6 +437,7 @@
     <div class="title-row">
       <h1><span class="hanzi title-cn">词汇</span></h1>
       <span class="count-badge" id="countBadge"></span>
+      <button class="select-toggle" id="selectToggle">Select</button>
     </div>
     <div class="title-en">Vocabulary from tutoring sessions</div>
     <div class="search-wrap">
@@ -387,6 +450,14 @@
   <main id="main">
     <div class="loading">Loading…</div>
   </main>
+
+  <div class="select-bar" id="selectBar">
+    <div class="sb-count" id="selectCount">0 selected</div>
+    <div class="sb-actions">
+      <button id="selectCancel">Cancel</button>
+      <button class="sb-delete" id="selectDelete" disabled>Delete</button>
+    </div>
+  </div>
 
   <button class="fab fab-paste" id="pasteBtn">☰</button>
   <button class="fab" id="addBtn">+</button>
@@ -404,6 +475,7 @@
       <div class="study-face study-back">
         <div class="study-pinyin" id="studyPinyin"></div>
         <div class="study-vn" id="studyVn"></div>
+        <div class="study-example hanzi" id="studyExample"></div>
         <div class="study-tag" id="studyTag"></div>
       </div>
     </div>
@@ -437,8 +509,8 @@
     <datalist id="categoryList"></datalist>
   </div>
   <div class="field">
-    <label>Notes (optional)</label>
-    <textarea id="fNotes" placeholder="Example sentence, usage notes…"></textarea>
+    <label>Example sentence (optional)</label>
+    <textarea id="fNotes" class="hanzi" placeholder="e.g. 他今天要加班到很晚。"></textarea>
   </div>
   <div class="sheet-actions">
     <button class="btn btn-delete" id="deleteBtn" style="display:none">🗑</button>
@@ -469,6 +541,8 @@ let entries = [];
 let activeCategory = 'All';
 let searchTerm = '';
 let editingId = null;
+let selectMode = false;
+let selectedIds = new Set();
 
 const $ = (id) => document.getElementById(id);
 const main = $('main'), chipsEl = $('chips'), countBadge = $('countBadge');
@@ -563,16 +637,25 @@ function render() {
   main.innerHTML = '';
   list.forEach(e => {
     const row = document.createElement('div');
-    row.className = 'entry';
+    const isChecked = selectedIds.has(e.id);
+    row.className = 'entry' + (selectMode ? ' selectable' : '') + (isChecked ? ' checked' : '');
     row.innerHTML = `
+      <div class="entry-checkbox"></div>
       <div class="hz hanzi">${escapeHtml(e.hanzi || '')}</div>
       <div class="meta">
         <div class="pinyin">${escapeHtml(e.pinyin || '')}</div>
         <div class="vietnamese">${escapeHtml(e.vietnamese || '')}</div>
       </div>
+      ${e.notes ? `<div class="tag" title="Has example sentence">例</div>` : ''}
       ${e.category ? `<div class="tag">${escapeHtml(e.category)}</div>` : ''}
     `;
-    row.onclick = () => openSheet(e);
+    row.onclick = () => {
+      if (selectMode) {
+        toggleSelect(e.id);
+      } else {
+        openSheet(e);
+      }
+    };
     main.appendChild(row);
   });
 }
@@ -732,6 +815,8 @@ function renderStudyCard() {
   $('studyFront').textContent = e.hanzi || '';
   $('studyPinyin').textContent = e.pinyin || '';
   $('studyVn').textContent = e.vietnamese || '';
+  $('studyExample').textContent = e.notes || '';
+  $('studyExample').style.display = e.notes ? 'block' : 'none';
   $('studyTag').textContent = e.category || '';
   $('studyTag').style.display = e.category ? 'inline-block' : 'none';
   $('studyProgress').textContent = `${studyIndex + 1} / ${studyDeck.length}`;
@@ -771,6 +856,68 @@ $('studyCard').onclick = studyFlip;
 $('studyNext').onclick = studyNext;
 $('studyPrev').onclick = studyPrev;
 $('studyShuffle').onclick = studyShuffle;
+
+// --- Multi-select delete ---
+const selectBar = $('selectBar');
+
+function enterSelectMode() {
+  selectMode = true;
+  selectedIds = new Set();
+  $('selectToggle').textContent = 'Cancel';
+  $('selectToggle').classList.add('active');
+  selectBar.classList.add('open');
+  $('addBtn').style.display = 'none';
+  $('pasteBtn').style.display = 'none';
+  $('studyBtn').style.display = 'none';
+  updateSelectBar();
+  render();
+}
+
+function exitSelectMode() {
+  selectMode = false;
+  selectedIds = new Set();
+  $('selectToggle').textContent = 'Select';
+  $('selectToggle').classList.remove('active');
+  selectBar.classList.remove('open');
+  $('addBtn').style.display = '';
+  $('pasteBtn').style.display = '';
+  $('studyBtn').style.display = '';
+  render();
+}
+
+function toggleSelect(id) {
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+  } else {
+    selectedIds.add(id);
+  }
+  updateSelectBar();
+  render();
+}
+
+function updateSelectBar() {
+  const n = selectedIds.size;
+  $('selectCount').textContent = `${n} selected`;
+  $('selectDelete').disabled = n === 0;
+}
+
+async function deleteSelected() {
+  const n = selectedIds.size;
+  if (!n) return;
+  const ok = confirm(`Delete ${n} word${n === 1 ? '' : 's'}? This can't be undone.`);
+  if (!ok) return;
+  entries = entries.filter(e => !selectedIds.has(e.id));
+  await persist();
+  showToast(`Deleted ${n} word${n === 1 ? '' : 's'}`);
+  exitSelectMode();
+}
+
+$('selectToggle').onclick = () => {
+  if (selectMode) exitSelectMode();
+  else enterSelectMode();
+};
+$('selectCancel').onclick = exitSelectMode;
+$('selectDelete').onclick = deleteSelected;
 
 loadEntries();
 
