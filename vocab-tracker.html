@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="词汇">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#14161a">
+<title>词汇 — Vocabulary</title>
+<style>
+  :root {
+    --ink: #14161a;
+    --surface: #1d2024;
+    --surface-raised: #24282d;
+    --paper: #ece6d8;
+    --paper-dim: #a9a294;
+    --seal: #c1402e;
+    --seal-dim: #7a2a1f;
+    --jade: #5c8577;
+    --jade-dim: #3a5750;
+    --line: #33373d;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: -apple-system, "PingFang SC", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+
+  .hanzi {
+    font-family: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  }
+
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+  header {
+    padding: 22px 18px 14px;
+    position: sticky; top: 0; z-index: 10;
+    background: linear-gradient(var(--ink) 85%, transparent);
+  }
+
+  .title-row { display: flex; align-items: baseline; justify-content: space-between; }
+  .title-row h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 0.02em;
+  }
+  .title-cn { font-size: 30px; }
+  .title-en { font-size: 13px; color: var(--paper-dim); font-weight: 400; }
+  .count-badge {
+    font-size: 12px; color: var(--paper-dim);
+  }
+
+  .search-wrap {
+    margin-top: 14px;
+    position: relative;
+  }
+  .search-wrap input {
+    width: 100%;
+    padding: 11px 14px 11px 36px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--paper);
+    font-size: 15px;
+    outline: none;
+  }
+  .search-wrap input:focus { border-color: var(--jade); }
+  .search-wrap::before {
+    content: "";
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--paper-dim);
+    border-radius: 50%;
+  }
+  .search-wrap::after {
+    content: "";
+    position: absolute; left: 22px; top: 62%;
+    width: 6px; height: 1.5px;
+    background: var(--paper-dim);
+    transform: rotate(45deg);
+  }
+
+  .chips {
+    display: flex; gap: 8px; overflow-x: auto;
+    margin-top: 12px; padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none;
+    padding: 6px 13px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--paper-dim);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--jade-dim);
+    border-color: var(--jade);
+    color: var(--paper);
+  }
+
+  main { flex: 1; padding: 6px 18px 100px; }
+
+  .empty {
+    margin-top: 60px;
+    text-align: center;
+    color: var(--paper-dim);
+  }
+  .empty .hanzi { font-size: 40px; display: block; margin-bottom: 10px; opacity: 0.5; }
+  .empty p { font-size: 14px; line-height: 1.6; margin: 4px 0; }
+
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 4px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .entry:active { background: var(--surface); }
+  .entry .hz {
+    font-size: 26px;
+    min-width: 62px;
+    flex: none;
+  }
+  .entry .meta { flex: 1; min-width: 0; }
+  .entry .pinyin { font-size: 14px; color: var(--jade); }
+  .entry .vietnamese {
+    font-size: 14px; color: var(--paper-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-top: 2px;
+  }
+  .entry .tag {
+    flex: none;
+    font-size: 11px;
+    color: var(--paper-dim);
+    border: 1px solid var(--line);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .fab {
+    position: fixed;
+    bottom: 22px; left: 50%;
+    transform: translateX(calc(-50% + 200px));
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--seal);
+    color: var(--paper);
+    border: none;
+    font-size: 26px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(193,64,46,0.4);
+  }
+  .fab:active { background: var(--seal-dim); }
+
+  .fab-paste {
+    width: 48px; height: 48px;
+    bottom: 90px;
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    color: var(--paper);
+    font-size: 19px;
+    box-shadow: none;
+  }
+  .fab-paste:active { border-color: var(--jade); }
+
+  @media (max-width: 480px) {
+    .fab { transform: none; right: 22px; left: auto; }
+  }
+
+  .sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 20;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    max-width: 480px; margin: 0 auto;
+    background: var(--surface-raised);
+    border-radius: 18px 18px 0 0;
+    padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+    z-index: 21;
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(.32,.72,0,1);
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+  .sheet.open { transform: translateY(0); }
+
+  .sheet-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--line);
+    margin: 8px auto 16px;
+  }
+
+  .sheet h2 { margin: 0 0 16px; font-size: 18px; }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-size: 12px; color: var(--paper-dim);
+    margin-bottom: 6px;
+  }
+  .field input, .field textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--paper);
+    font-size: 16px;
+    outline: none;
+    font-family: inherit;
+  }
+  .field input.hz-input { font-family: "Noto Serif SC","Songti SC",serif; font-size: 20px; }
+  .field input:focus, .field textarea:focus { border-color: var(--jade); }
+  .field textarea { resize: vertical; min-height: 50px; }
+
+  .sheet-actions {
+    display: flex; gap: 10px; margin-top: 18px;
+  }
+  .btn {
+    flex: 1;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-save { background: var(--seal); color: var(--paper); }
+  .btn-save:active { background: var(--seal-dim); }
+  .btn-delete { background: transparent; color: var(--paper-dim); border: 1px solid var(--line); flex: none; width: 46px; }
+  .btn-delete:active { border-color: var(--seal); color: var(--seal); }
+
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: var(--surface-raised);
+    color: var(--paper);
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    border: 1px solid var(--line);
+  }
+  .toast.show { opacity: 1; }
+
+  .study-btn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--jade-dim);
+    background: transparent;
+    color: var(--jade);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .study-btn:active { background: var(--jade-dim); color: var(--paper); }
+
+  .study-overlay {
+    position: fixed; inset: 0;
+    max-width: 480px; margin: 0 auto;
+    background: var(--ink);
+    z-index: 40;
+    display: flex; flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(.32,.72,0,1);
+  }
+  .study-overlay.open { transform: translateY(0); }
+
+  .study-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 18px 6px;
+  }
+  .study-top button {
+    background: none; border: none; color: var(--paper-dim);
+    font-size: 20px; padding: 6px 10px; cursor: pointer;
+  }
+  .study-progress { font-size: 13px; color: var(--paper-dim); }
+
+  .study-card-wrap {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px 28px;
+  }
+  .study-card {
+    width: 100%;
+    max-width: 340px;
+    aspect-ratio: 3 / 4;
+    position: relative;
+    perspective: 1200px;
+    cursor: pointer;
+  }
+  .study-face {
+    position: absolute; inset: 0;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    backface-visibility: hidden;
+    transform: rotateY(0deg);
+    transition: transform 0.45s cubic-bezier(.4,.2,.2,1);
+    padding: 24px;
+    text-align: center;
+  }
+  .study-front { font-size: 54px; }
+  .study-back {
+    transform: rotateY(180deg);
+    background: var(--surface-raised);
+    border-color: var(--jade-dim);
+    gap: 10px;
+  }
+  .study-card.flipped .study-front { transform: rotateY(180deg); }
+  .study-card.flipped .study-back { transform: rotateY(360deg); }
+
+  .study-pinyin { font-size: 26px; color: var(--jade); }
+  .study-vn { font-size: 20px; color: var(--paper); }
+  .study-tag {
+    margin-top: 6px;
+    font-size: 11px; color: var(--paper-dim);
+    border: 1px solid var(--line);
+    padding: 3px 10px; border-radius: 999px;
+  }
+  .study-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--paper-dim);
+    padding-bottom: 4px;
+  }
+
+  .study-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 28px calc(28px + env(safe-area-inset-bottom));
+  }
+  .study-nav button {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--paper);
+    font-size: 22px;
+    cursor: pointer;
+  }
+  .study-nav button:active { border-color: var(--jade); color: var(--jade); }
+
+  .loading { text-align: center; color: var(--paper-dim); padding: 40px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="title-row">
+      <h1><span class="hanzi title-cn">词汇</span></h1>
+      <span class="count-badge" id="countBadge"></span>
+    </div>
+    <div class="title-en">Vocabulary from tutoring sessions</div>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search hanzi, pinyin, or Vietnamese">
+    </div>
+    <div class="chips" id="chips"></div>
+    <button class="study-btn" id="studyBtn">Study flashcards →</button>
+  </header>
+
+  <main id="main">
+    <div class="loading">Loading…</div>
+  </main>
+
+  <button class="fab fab-paste" id="pasteBtn">☰</button>
+  <button class="fab" id="addBtn">+</button>
+</div>
+
+<div class="study-overlay" id="studyOverlay">
+  <div class="study-top">
+    <button id="studyClose">✕</button>
+    <div class="study-progress" id="studyProgress"></div>
+    <button id="studyShuffle">🔀</button>
+  </div>
+  <div class="study-card-wrap">
+    <div class="study-card hanzi" id="studyCard">
+      <div class="study-face study-front" id="studyFront"></div>
+      <div class="study-face study-back">
+        <div class="study-pinyin" id="studyPinyin"></div>
+        <div class="study-vn" id="studyVn"></div>
+        <div class="study-tag" id="studyTag"></div>
+      </div>
+    </div>
+  </div>
+  <div class="study-hint">Tap the card to flip</div>
+  <div class="study-nav">
+    <button id="studyPrev">‹</button>
+    <button id="studyNext">›</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <h2 id="sheetTitle">Add word</h2>
+  <div class="field">
+    <label>Hanzi</label>
+    <input type="text" id="fHanzi" class="hz-input" placeholder="汉字">
+  </div>
+  <div class="field">
+    <label>Pinyin</label>
+    <input type="text" id="fPinyin" placeholder="hàn zì">
+  </div>
+  <div class="field">
+    <label>Vietnamese meaning</label>
+    <input type="text" id="fVietnamese" placeholder="Nghĩa tiếng Việt">
+  </div>
+  <div class="field">
+    <label>Category</label>
+    <input type="text" id="fCategory" list="categoryList" placeholder="e.g. food, HSK3, travel">
+    <datalist id="categoryList"></datalist>
+  </div>
+  <div class="field">
+    <label>Notes (optional)</label>
+    <textarea id="fNotes" placeholder="Example sentence, usage notes…"></textarea>
+  </div>
+  <div class="sheet-actions">
+    <button class="btn btn-delete" id="deleteBtn" style="display:none">🗑</button>
+    <button class="btn btn-save" id="saveBtn">Save</button>
+  </div>
+</div>
+<div class="sheet-backdrop" id="bulkBackdrop"></div>
+<div class="sheet" id="bulkSheet">
+  <div class="sheet-handle"></div>
+  <h2>Paste from tutor</h2>
+  <div class="field">
+    <label>One word per line — 加班 Jiābān: tăng ca</label>
+    <textarea id="bulkText" rows="8" placeholder="加班 Jiābān: tăng ca&#10;下班 Xiàbān: tan ca"></textarea>
+  </div>
+  <div class="field">
+    <label>Category for this batch (optional)</label>
+    <input type="text" id="bulkCategory" list="categoryList" placeholder="e.g. HSK3, work">
+  </div>
+  <div class="sheet-actions">
+    <button class="btn btn-save" id="bulkSaveBtn">Add words</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'vocab-entries';
+let entries = [];
+let activeCategory = 'All';
+let searchTerm = '';
+let editingId = null;
+
+const $ = (id) => document.getElementById(id);
+const main = $('main'), chipsEl = $('chips'), countBadge = $('countBadge');
+const sheet = $('sheet'), backdrop = $('backdrop');
+
+function uid() { return 'v' + Date.now() + Math.random().toString(36).slice(2,7); }
+
+async function loadEntries() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    entries = [];
+  }
+  render();
+}
+
+async function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch (e) {
+    showToast("Couldn't save — try again");
+  }
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function getCategories() {
+  const set = new Set();
+  entries.forEach(e => { if (e.category) set.add(e.category); });
+  return Array.from(set).sort((a,b) => a.localeCompare(b));
+}
+
+function renderChips() {
+  const cats = getCategories();
+  const all = ['All', ...cats];
+  chipsEl.innerHTML = '';
+  all.forEach(cat => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (cat === activeCategory ? ' active' : '');
+    chip.textContent = cat;
+    chip.onclick = () => { activeCategory = cat; render(); };
+    chipsEl.appendChild(chip);
+  });
+
+  const dl = $('categoryList');
+  dl.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function getFilteredEntries() {
+  let list = entries.slice().sort((a,b) => b.dateAdded - a.dateAdded);
+
+  if (activeCategory !== 'All') {
+    list = list.filter(e => e.category === activeCategory);
+  }
+  if (searchTerm.trim()) {
+    const q = searchTerm.trim().toLowerCase();
+    list = list.filter(e =>
+      (e.hanzi || '').toLowerCase().includes(q) ||
+      (e.pinyin || '').toLowerCase().includes(q) ||
+      (e.vietnamese || '').toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+function render() {
+  renderChips();
+
+  const list = getFilteredEntries();
+
+  countBadge.textContent = entries.length ? `${entries.length} word${entries.length === 1 ? '' : 's'}` : '';
+
+  if (!list.length) {
+    main.innerHTML = entries.length
+      ? `<div class="empty"><span class="hanzi">无</span><p>No matches.</p><p>Try a different search or category.</p></div>`
+      : `<div class="empty"><span class="hanzi">空</span><p>No words yet.</p><p>Tap + to add your first word from your tutor's list.</p></div>`;
+    return;
+  }
+
+  main.innerHTML = '';
+  list.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'entry';
+    row.innerHTML = `
+      <div class="hz hanzi">${escapeHtml(e.hanzi || '')}</div>
+      <div class="meta">
+        <div class="pinyin">${escapeHtml(e.pinyin || '')}</div>
+        <div class="vietnamese">${escapeHtml(e.vietnamese || '')}</div>
+      </div>
+      ${e.category ? `<div class="tag">${escapeHtml(e.category)}</div>` : ''}
+    `;
+    row.onclick = () => openSheet(e);
+    main.appendChild(row);
+  });
+}
+
+function openSheet(entry) {
+  editingId = entry ? entry.id : null;
+  $('sheetTitle').textContent = entry ? 'Edit word' : 'Add word';
+  $('fHanzi').value = entry ? entry.hanzi : '';
+  $('fPinyin').value = entry ? entry.pinyin : '';
+  $('fVietnamese').value = entry ? entry.vietnamese : '';
+  $('fCategory').value = entry ? (entry.category || '') : '';
+  $('fNotes').value = entry ? (entry.notes || '') : '';
+  $('deleteBtn').style.display = entry ? 'block' : 'none';
+  backdrop.classList.add('open');
+  sheet.classList.add('open');
+  setTimeout(() => $('fHanzi').focus(), 250);
+}
+
+function closeSheet() {
+  backdrop.classList.remove('open');
+  sheet.classList.remove('open');
+  editingId = null;
+}
+
+async function saveEntry() {
+  const hanzi = $('fHanzi').value.trim();
+  const pinyin = $('fPinyin').value.trim();
+  const vietnamese = $('fVietnamese').value.trim();
+  const category = $('fCategory').value.trim();
+  const notes = $('fNotes').value.trim();
+
+  if (!hanzi && !pinyin && !vietnamese) {
+    showToast('Add at least a word or meaning');
+    return;
+  }
+
+  if (editingId) {
+    const idx = entries.findIndex(e => e.id === editingId);
+    if (idx > -1) {
+      entries[idx] = { ...entries[idx], hanzi, pinyin, vietnamese, category, notes };
+    }
+  } else {
+    entries.push({ id: uid(), hanzi, pinyin, vietnamese, category, notes, dateAdded: Date.now() });
+  }
+
+  await persist();
+  closeSheet();
+  render();
+  showToast('Saved');
+}
+
+async function deleteEntry() {
+  if (!editingId) return;
+  entries = entries.filter(e => e.id !== editingId);
+  await persist();
+  closeSheet();
+  render();
+  showToast('Deleted');
+}
+
+$('addBtn').onclick = () => openSheet(null);
+$('backdrop').onclick = closeSheet;
+$('saveBtn').onclick = saveEntry;
+$('deleteBtn').onclick = deleteEntry;
+$('searchInput').addEventListener('input', (e) => { searchTerm = e.target.value; render(); });
+
+// --- Bulk paste ---
+const bulkSheet = $('bulkSheet'), bulkBackdrop = $('bulkBackdrop');
+
+function openBulkSheet() {
+  $('bulkText').value = '';
+  $('bulkCategory').value = '';
+  bulkBackdrop.classList.add('open');
+  bulkSheet.classList.add('open');
+  setTimeout(() => $('bulkText').focus(), 250);
+}
+
+function closeBulkSheet() {
+  bulkBackdrop.classList.remove('open');
+  bulkSheet.classList.remove('open');
+}
+
+// Parses lines like: 加班 Jiābān: tăng ca
+// hanzi block (CJK chars) -> pinyin (letters/diacritics/spaces up to colon) -> vietnamese (after colon)
+function parseLine(line) {
+  const m = line.trim().match(/^([\u4e00-\u9fff\u3400-\u4dbf]+)\s*([^:：]*?)\s*[:：]\s*(.+)$/);
+  if (!m) return null;
+  const [, hanzi, pinyin, vietnamese] = m;
+  if (!hanzi || !vietnamese) return null;
+  return { hanzi: hanzi.trim(), pinyin: pinyin.trim(), vietnamese: vietnamese.trim() };
+}
+
+async function bulkSave() {
+  const raw = $('bulkText').value;
+  const category = $('bulkCategory').value.trim();
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  if (!lines.length) {
+    showToast('Paste some words first');
+    return;
+  }
+
+  let added = 0, skipped = 0;
+  lines.forEach(line => {
+    const parsed = parseLine(line);
+    if (parsed) {
+      entries.push({
+        id: uid(),
+        hanzi: parsed.hanzi,
+        pinyin: parsed.pinyin,
+        vietnamese: parsed.vietnamese,
+        category,
+        notes: '',
+        dateAdded: Date.now()
+      });
+      added++;
+    } else {
+      skipped++;
+    }
+  });
+
+  if (added) await persist();
+  closeBulkSheet();
+  render();
+  showToast(skipped ? `Added ${added}, skipped ${skipped}` : `Added ${added} word${added === 1 ? '' : 's'}`);
+}
+
+$('pasteBtn').onclick = openBulkSheet;
+$('bulkBackdrop').onclick = closeBulkSheet;
+$('bulkSaveBtn').onclick = bulkSave;
+
+// --- Flashcards ---
+const studyOverlay = $('studyOverlay'), studyCard = $('studyCard');
+let studyDeck = [];
+let studyIndex = 0;
+let studyFlipped = false;
+
+function openStudy() {
+  studyDeck = getFilteredEntries();
+  if (!studyDeck.length) {
+    showToast('No words to study');
+    return;
+  }
+  studyIndex = 0;
+  studyFlipped = false;
+  renderStudyCard();
+  studyOverlay.classList.add('open');
+}
+
+function closeStudy() {
+  studyOverlay.classList.remove('open');
+}
+
+function renderStudyCard() {
+  const e = studyDeck[studyIndex];
+  studyCard.classList.toggle('flipped', studyFlipped);
+  $('studyFront').textContent = e.hanzi || '';
+  $('studyPinyin').textContent = e.pinyin || '';
+  $('studyVn').textContent = e.vietnamese || '';
+  $('studyTag').textContent = e.category || '';
+  $('studyTag').style.display = e.category ? 'inline-block' : 'none';
+  $('studyProgress').textContent = `${studyIndex + 1} / ${studyDeck.length}`;
+}
+
+function studyFlip() {
+  studyFlipped = !studyFlipped;
+  studyCard.classList.toggle('flipped', studyFlipped);
+}
+
+function studyNext() {
+  studyIndex = (studyIndex + 1) % studyDeck.length;
+  studyFlipped = false;
+  renderStudyCard();
+}
+
+function studyPrev() {
+  studyIndex = (studyIndex - 1 + studyDeck.length) % studyDeck.length;
+  studyFlipped = false;
+  renderStudyCard();
+}
+
+function studyShuffle() {
+  for (let i = studyDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [studyDeck[i], studyDeck[j]] = [studyDeck[j], studyDeck[i]];
+  }
+  studyIndex = 0;
+  studyFlipped = false;
+  renderStudyCard();
+  showToast('Shuffled');
+}
+
+$('studyBtn').onclick = openStudy;
+$('studyClose').onclick = closeStudy;
+$('studyCard').onclick = studyFlip;
+$('studyNext').onclick = studyNext;
+$('studyPrev').onclick = studyPrev;
+$('studyShuffle').onclick = studyShuffle;
+
+loadEntries();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
