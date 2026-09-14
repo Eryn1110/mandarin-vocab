@@ -606,6 +606,13 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
+function stripDiacritics(s) {
+  return (s || '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 function getFilteredEntries() {
   let list = entries.slice().sort((a,b) => b.dateAdded - a.dateAdded);
 
@@ -613,11 +620,11 @@ function getFilteredEntries() {
     list = list.filter(e => e.category === activeCategory);
   }
   if (searchTerm.trim()) {
-    const q = searchTerm.trim().toLowerCase();
+    const q = stripDiacritics(searchTerm.trim());
     list = list.filter(e =>
-      (e.hanzi || '').toLowerCase().includes(q) ||
-      (e.pinyin || '').toLowerCase().includes(q) ||
-      (e.vietnamese || '').toLowerCase().includes(q)
+      (e.hanzi || '').includes(searchTerm.trim()) ||
+      stripDiacritics(e.pinyin).includes(q) ||
+      stripDiacritics(e.vietnamese).includes(q)
     );
   }
   return list;
