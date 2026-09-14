@@ -1,5 +1,5 @@
-const CACHE_NAME = 'vocab-tracker-v5';
-const ASSETS = ['./vocab-tracker.html'];
+const CACHE_NAME = 'vocab-tracker-v8';
+const ASSETS = ['./vocab-tracker.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
