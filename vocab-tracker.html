@@ -793,12 +793,20 @@ let studyDeck = [];
 let studyIndex = 0;
 let studyFlipped = false;
 
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
 function openStudy() {
   studyDeck = getFilteredEntries();
   if (!studyDeck.length) {
     showToast('No words to study');
     return;
   }
+  shuffleArray(studyDeck);
   studyIndex = 0;
   studyFlipped = false;
   renderStudyCard();
@@ -840,10 +848,7 @@ function studyPrev() {
 }
 
 function studyShuffle() {
-  for (let i = studyDeck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [studyDeck[i], studyDeck[j]] = [studyDeck[j], studyDeck[i]];
-  }
+  shuffleArray(studyDeck);
   studyIndex = 0;
   studyFlipped = false;
   renderStudyCard();
