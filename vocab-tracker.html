@@ -337,6 +337,12 @@
     cursor: pointer;
   }
   .study-btn:active { background: var(--jade-dim); color: var(--paper); }
+  .practice-btn {
+    margin-top: 8px;
+    border-color: var(--seal-dim);
+    color: var(--seal);
+  }
+  .practice-btn:active { background: var(--seal-dim); color: var(--paper); }
 
   .study-overlay {
     position: fixed; inset: 0;
@@ -448,6 +454,7 @@
     </div>
     <div class="chips" id="chips"></div>
     <button class="study-btn" id="studyBtn">Study flashcards →</button>
+    <button class="study-btn practice-btn" id="practiceBtn">Practice 10 words →</button>
   </header>
 
   <main id="main">
@@ -802,6 +809,7 @@ const studyOverlay = $('studyOverlay'), studyCard = $('studyCard');
 let studyDeck = [];
 let studyIndex = 0;
 let studyFlipped = false;
+let sessionMode = false;
 
 function shuffleArray(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -819,15 +827,33 @@ function openStudy() {
   shuffleArray(studyDeck);
   studyIndex = 0;
   studyFlipped = false;
+  sessionMode = false;
+  renderStudyCard();
+  studyOverlay.classList.add('open');
+}
+
+function openPractice() {
+  const pool = getFilteredEntries();
+  if (!pool.length) {
+    showToast('No words to study');
+    return;
+  }
+  shuffleArray(pool);
+  studyDeck = pool.slice(0, Math.min(10, pool.length));
+  studyIndex = 0;
+  studyFlipped = false;
+  sessionMode = true;
   renderStudyCard();
   studyOverlay.classList.add('open');
 }
 
 function closeStudy() {
   studyOverlay.classList.remove('open');
+  sessionMode = false;
 }
 
 function renderStudyCard() {
+  $('studyClose').textContent = sessionMode ? 'Done' : '✕';
   const e = studyDeck[studyIndex];
   studyCard.classList.toggle('flipped', studyFlipped);
   $('studyFront').textContent = e.hanzi || '';
@@ -837,7 +863,9 @@ function renderStudyCard() {
   $('studyExample').style.display = e.notes ? 'block' : 'none';
   $('studyTag').textContent = e.category || '';
   $('studyTag').style.display = e.category ? 'inline-block' : 'none';
-  $('studyProgress').textContent = `${studyIndex + 1} / ${studyDeck.length}`;
+  $('studyProgress').textContent = sessionMode
+    ? `Practice · card ${studyIndex + 1}/${studyDeck.length}`
+    : `${studyIndex + 1} / ${studyDeck.length}`;
 }
 
 function studyFlip() {
@@ -846,7 +874,13 @@ function studyFlip() {
 }
 
 function studyNext() {
-  studyIndex = (studyIndex + 1) % studyDeck.length;
+  const atEnd = studyIndex === studyDeck.length - 1;
+  if (sessionMode && atEnd) {
+    shuffleArray(studyDeck);
+    studyIndex = 0;
+  } else {
+    studyIndex = (studyIndex + 1) % studyDeck.length;
+  }
   studyFlipped = false;
   renderStudyCard();
 }
@@ -866,6 +900,7 @@ function studyShuffle() {
 }
 
 $('studyBtn').onclick = openStudy;
+$('practiceBtn').onclick = openPractice;
 $('studyClose').onclick = closeStudy;
 $('studyCard').onclick = studyFlip;
 $('studyNext').onclick = studyNext;
