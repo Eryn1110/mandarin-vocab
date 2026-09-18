@@ -19,8 +19,8 @@
     --surface-raised: #24282d;
     --paper: #ece6d8;
     --paper-dim: #a9a294;
-    --seal: #c1402e;
-    --seal-dim: #7a2a1f;
+    --seal: #e07b34;
+    --seal-dim: #8a4a1f;
     --jade: #5c8577;
     --jade-dim: #3a5750;
     --line: #33373d;
@@ -209,6 +209,17 @@
     padding: 3px 8px;
     border-radius: 999px;
   }
+  .speak-btn {
+    flex: none;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    font-size: 16px;
+    color: var(--jade);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .speak-btn:active { background: var(--jade-dim); }
 
   .fab {
     position: fixed;
@@ -493,6 +504,7 @@
   <div class="study-hint">Tap the card to flip</div>
   <div class="study-nav">
     <button id="studyPrev">‹</button>
+    <button id="studySpeak">🔊</button>
     <button id="studyNext">›</button>
   </div>
 </div>
@@ -620,6 +632,18 @@ function stripDiacritics(s) {
     .toLowerCase();
 }
 
+function speakHanzi(text) {
+  if (!text || !('speechSynthesis' in window)) {
+    showToast("Speech isn't supported on this device");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'zh-CN';
+  utter.rate = 0.85;
+  window.speechSynthesis.speak(utter);
+}
+
 function getFilteredEntries() {
   let list = entries.slice().sort((a,b) => b.dateAdded - a.dateAdded);
 
@@ -665,7 +689,12 @@ function render() {
       </div>
       ${e.notes ? `<div class="tag" title="Has example sentence">例</div>` : ''}
       ${e.category ? `<div class="tag">${escapeHtml(e.category)}</div>` : ''}
+      <button class="speak-btn" title="Listen">🔊</button>
     `;
+    row.querySelector('.speak-btn').onclick = (ev) => {
+      ev.stopPropagation();
+      speakHanzi(e.hanzi);
+    };
     row.onclick = () => {
       if (selectMode) {
         toggleSelect(e.id);
@@ -905,6 +934,7 @@ $('studyClose').onclick = closeStudy;
 $('studyCard').onclick = studyFlip;
 $('studyNext').onclick = studyNext;
 $('studyPrev').onclick = studyPrev;
+$('studySpeak').onclick = () => speakHanzi(studyDeck[studyIndex]?.hanzi);
 $('studyShuffle').onclick = studyShuffle;
 
 // --- Multi-select delete ---
